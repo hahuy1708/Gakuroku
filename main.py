@@ -27,9 +27,14 @@ def main_menu():
                 import_task.run_import()
         
         elif choice == '2':
-            keyword = input("Enter the word to search (Eng/Kanji/Hiragana): ").strip()
-            if keyword:
-                search.perform_search(keyword)
+            while True:
+                keyword = input("Enter the word to search (Eng/Kanji/Hiragana): "
+                "[q to quit] "
+                ).strip()
+                if keyword.lower() == 'q':
+                    break
+                if keyword:
+                    search.perform_search(keyword)
         
         elif choice == '3':
             sys.exit()
