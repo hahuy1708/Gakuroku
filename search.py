@@ -10,43 +10,71 @@ def perform_search(keyword):
     print(f"\n🔍 Searching: '{keyword}'...")
 
     # Search priority:
-    # 1) Exact headword / reading
-    # 2) Prefix headword / reading
-    # 3) Exact English word in gloss_text (word boundary)
-    # 4) Full-text (English gloss_text)
-    # 5) LIKE fallback
+    # 1) Exact Kanji (any spelling)
+    # 2) Exact Reading (any reading)
+    # 3) Prefix Kanji / Reading
+    # 4) Common flag (from any Kanji form)
+    # 5) Exact English word in gloss_text (word boundary)
+    # 6) Prefix gloss
+    # 7) Full-text score (English gloss_text)
+    # 8) LIKE fallback
     sql_search = """
-        SELECT raw_json, headword, reading, is_common,
-               (headword = %s) AS exact_hw,
-               (reading = %s) AS exact_rd,
-               (headword LIKE %s) AS prefix_hw,
-               (reading LIKE %s) AS prefix_rd,
-               (LOWER(gloss_text) REGEXP CONCAT('(^|[^0-9a-z])', %s, '([^0-9a-z]|$)')) AS exact_gloss_word,
-               (LOWER(gloss_text) LIKE CONCAT(%s, '%')) AS prefix_gloss,
-               (gloss_text LIKE %s) AS like_gloss,
-               MATCH(gloss_text) AGAINST (%s IN NATURAL LANGUAGE MODE) AS ft_score,
-               CHAR_LENGTH(headword) AS hw_len,
-               CHAR_LENGTH(reading) AS rd_len
-        FROM dictionary
-        WHERE headword = %s
-           OR reading = %s
-           OR headword LIKE %s
-           OR reading LIKE %s
-           OR gloss_text LIKE %s
-           OR MATCH(gloss_text) AGAINST (%s IN NATURAL LANGUAGE MODE)
-        ORDER BY exact_hw DESC,
-                 exact_rd DESC,
-                 prefix_hw DESC,
-                 prefix_rd DESC,
-                 is_common DESC,
-                 exact_gloss_word DESC,
-                 prefix_gloss DESC,
-                 ft_score DESC,
-                 like_gloss DESC,
-                 hw_len ASC,
-                 rd_len ASC,
-                 headword ASC,
-                 reading ASC
+        SELECT
+            e.raw_json,
+            e.primary_headword,
+
+            EXISTS(
+                SELECT 1 FROM entry_kanji k
+                WHERE k.entry_id = e.id AND k.kanji_text = %s
+            ) AS exact_kj,
+            EXISTS(
+                SELECT 1 FROM entry_reading r
+                WHERE r.entry_id = e.id AND r.reading_text = %s
+            ) AS exact_rd,
+            EXISTS(
+                SELECT 1 FROM entry_kanji k
+                WHERE k.entry_id = e.id AND k.kanji_text LIKE %s
+            ) AS prefix_kj,
+            EXISTS(
+                SELECT 1 FROM entry_reading r
+                WHERE r.entry_id = e.id AND r.reading_text LIKE %s
+            ) AS prefix_rd,
+
+            COALESCE((SELECT MAX(k.is_common) FROM entry_kanji k WHERE k.entry_id = e.id), 0) AS is_common,
+
+            (LOWER(d.gloss_text) REGEXP CONCAT('(^|[^0-9a-z])', %s, '([^0-9a-z]|$)')) AS exact_gloss_word,
+            (LOWER(d.gloss_text) LIKE CONCAT(%s, '%')) AS prefix_gloss,
+            (d.gloss_text LIKE %s) AS like_gloss,
+            MATCH(d.gloss_text) AGAINST (%s IN NATURAL LANGUAGE MODE) AS ft_score,
+
+            CHAR_LENGTH(e.primary_headword) AS hw_len
+
+        FROM entries e
+        LEFT JOIN entry_definitions d ON d.entry_id = e.id
+        JOIN (
+            SELECT entry_id FROM entry_kanji
+             WHERE kanji_text = %s OR kanji_text LIKE %s
+            UNION
+            SELECT entry_id FROM entry_reading
+             WHERE reading_text = %s OR reading_text LIKE %s
+            UNION
+            SELECT entry_id FROM entry_definitions
+             WHERE gloss_text LIKE %s OR MATCH(gloss_text) AGAINST (%s IN NATURAL LANGUAGE MODE)
+        ) m ON m.entry_id = e.id
+
+        ORDER BY
+            exact_kj DESC,
+            exact_rd DESC,
+            prefix_kj DESC,
+            prefix_rd DESC,
+            is_common DESC,
+            exact_gloss_word DESC,
+            prefix_gloss DESC,
+            ft_score DESC,
+            like_gloss DESC,
+            hw_len ASC,
+            e.primary_headword ASC
+
         LIMIT 10;
     """
 
@@ -58,6 +86,7 @@ def perform_search(keyword):
     keyword_lower = str(keyword).lower()
     regex_literal = re.escape(keyword_lower)
     params = (
+        # ranking flags
         keyword,
         keyword,
         prefix,
@@ -66,9 +95,10 @@ def perform_search(keyword):
         keyword_lower,
         like,
         keyword,
-        keyword,
+        # candidate set
         keyword,
         prefix,
+        keyword,
         prefix,
         like,
         keyword,

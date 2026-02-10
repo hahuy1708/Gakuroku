@@ -61,14 +61,10 @@ Menu options:
 * **3. Exit**: Exit the application.
 ## Notes
 
-* On the first run, the application will automatically create the `dictionary` table if it does not exist.
-* If you import data multiple times, you may encounter duplicate `PRIMARY KEY (id)` errors.
-
-  * Quick fix: clear or drop the table and import again:
-
-    * `TRUNCATE TABLE dictionary;` or `DROP TABLE dictionary;` (then run the program again).
+* On the first run, the application will automatically create the tables: `entries`, `entry_kanji`, `entry_reading`, `entry_definitions`, `vocab_lists`, `flashcards`.
+* Re-import (menu option 1) clears `entries` + related tables, and also clears `flashcards` (because flashcards reference entries). It does not clear `vocab_lists`.
 
 ## Troubleshooting
 
 * If you encounter database connection errors: ensure MySQL is running, `.env` credentials are correct, and the user has access rights to the database.
-* If English search results are inaccurate or missing: make sure MySQL supports `FULLTEXT` indexes (already created in `setup_datab
+* If English search results are inaccurate or missing: make sure MySQL supports `FULLTEXT` indexes (already created in `setup_database` function).
