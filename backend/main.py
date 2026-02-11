@@ -1,8 +1,13 @@
 # backend/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+
+import mysql.connector
+
+from schemas import WordSchema
+from search import search_entries
 
 load_dotenv()
 
@@ -32,3 +37,13 @@ def read_root():
         "status": "running",
         "db_host": os.getenv("DB_HOST") # Test .env 
     }
+
+
+@app.get("/api/search", response_model=list[WordSchema])
+def api_search(keyword: str):
+    try:
+        return search_entries(keyword)
+    except mysql.connector.Error:
+        raise HTTPException(status_code=503, detail="Database connection error")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")

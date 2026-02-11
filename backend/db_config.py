@@ -1,4 +1,4 @@
-# db_config.py
+# backend/db_config.py
 import mysql.connector
 from dotenv import load_dotenv 
 import os
