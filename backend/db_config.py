@@ -2,6 +2,8 @@
 import mysql.connector
 from dotenv import load_dotenv 
 import os
+from datetime import date as Date
+from typing import Union
 load_dotenv()
 
 DB_CONFIG = {
@@ -115,6 +117,19 @@ def setup_database():
           DEFAULT CHARSET=utf8mb4
           COLLATE=utf8mb4_unicode_ci;
         """,
+
+        # --- Heatmap / Study activity ---
+        """
+        CREATE TABLE IF NOT EXISTS study_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            `date` DATE NOT NULL,
+            `count` INT NOT NULL DEFAULT 0,
+
+            UNIQUE KEY uq_study_logs_date (`date`)
+        ) ENGINE=InnoDB
+          DEFAULT CHARSET=utf8mb4
+          COLLATE=utf8mb4_unicode_ci;
+        """,
     ]
 
     for stmt in statements:
@@ -123,3 +138,25 @@ def setup_database():
     conn.commit()
     cursor.close()
     conn.close()
+
+
+def increment_study_log(log_date: Union[Date, str], delta: int = 1) -> None:
+    """Increment the study count for a given date.
+
+    Ensures there is only one row per day via UNIQUE(`date`) + upsert.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO study_logs (`date`, `count`)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE `count` = `count` + VALUES(`count`)
+            """,
+            (log_date, int(delta)),
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()

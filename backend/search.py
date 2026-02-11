@@ -85,7 +85,7 @@ def search_entries(keyword: str) -> List[dict]:
     conn = None
     cursor = None
     output: List[dict] = []
-    
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -195,11 +195,6 @@ def search_entries(keyword: str) -> List[dict]:
             if not word_obj:
                 continue
             output.append(_extract_word_schema_dict(word_obj))
-            
-
-    except Exception as e:
-        print(f"Error searching entries: {e}")
-        # Return empty list on error instead of None/Crash
     finally:
         if cursor is not None:
             cursor.close()

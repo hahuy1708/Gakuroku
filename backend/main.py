@@ -1,6 +1,8 @@
 # backend/main.py
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from db_config import setup_database
 from dotenv import load_dotenv
 import os
 
@@ -11,10 +13,18 @@ from search import search_entries
 
 load_dotenv()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Starting up... Setting up database.")
+    setup_database()
+    yield
+    print("Shutting down...")
+
 app = FastAPI(
     title="Gakuroku API",
     description="Backend API for Japanese Flashcard App",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
 origins = [
