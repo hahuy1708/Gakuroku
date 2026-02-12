@@ -23,7 +23,7 @@ def _parse_word_json(raw_json: Any) -> Optional[dict]:
     return None
 
 
-def _extract_word_schema_dict(word_obj: dict) -> Dict[str, Any]:
+def _extract_word_schema_dict(word_obj: dict, entry_id: str) -> Dict[str, Any]:
     kanji_list = word_obj.get("kanji") or []
     kana_list = word_obj.get("kana") or []
 
@@ -73,6 +73,7 @@ def _extract_word_schema_dict(word_obj: dict) -> Dict[str, Any]:
         )
 
     return {
+        "id": str(entry_id),
         "kanji": str(kanji_text) if kanji_text else None,
         "kana": str(kana_text),
         "is_common": bool(is_common),
@@ -102,6 +103,7 @@ def search_entries(keyword: str) -> List[dict]:
         
         sql_search = """
             SELECT
+                e.id,
                 e.raw_json,
                 e.primary_headword,
 
@@ -190,11 +192,12 @@ def search_entries(keyword: str) -> List[dict]:
         results = cursor.fetchall()
         
         for row in results or []:
-            raw_json = row[0]
+            db_id = row[0]
+            raw_json = row[1]
             word_obj = _parse_word_json(raw_json)
             if not word_obj:
                 continue
-            output.append(_extract_word_schema_dict(word_obj))
+            output.append(_extract_word_schema_dict(word_obj, entry_id=db_id))
     finally:
         if cursor is not None:
             cursor.close()

@@ -2,7 +2,7 @@
 import sys
 import db_config
 import import_task
-import search
+import services.search as search
 
 def main_menu():
     try:
