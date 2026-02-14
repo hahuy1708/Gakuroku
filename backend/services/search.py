@@ -94,6 +94,7 @@ def search_entries(keyword: str) -> List[dict]:
         # Search priority:
         # 1) Exact Kanji (any spelling)
         # 2) Exact Reading (any reading)
+        # 2.5) Entry is prefix of keyword (e.g. 反抗 matches 反抗的)
         # 3) Prefix Kanji / Reading
         # 4) Common flag (from any Kanji form)
         # 5) Exact English word in gloss_text (word boundary)
@@ -117,6 +118,14 @@ def search_entries(keyword: str) -> List[dict]:
                 ) AS exact_rd,
                 EXISTS(
                     SELECT 1 FROM entry_kanji k
+                    WHERE k.entry_id = e.id AND %s LIKE CONCAT(k.kanji_text, '%')
+                ) AS entry_prefix_of_keyword_kj,
+                EXISTS(
+                    SELECT 1 FROM entry_reading r
+                    WHERE r.entry_id = e.id AND %s LIKE CONCAT(r.reading_text, '%')
+                ) AS entry_prefix_of_keyword_rd,
+                EXISTS(
+                    SELECT 1 FROM entry_kanji k
                     WHERE k.entry_id = e.id AND k.kanji_text LIKE %s
                 ) AS prefix_kj,
                 EXISTS(
@@ -137,10 +146,10 @@ def search_entries(keyword: str) -> List[dict]:
             LEFT JOIN entry_definitions d ON d.entry_id = e.id
             JOIN (
                 SELECT entry_id FROM entry_kanji
-                 WHERE kanji_text = %s OR kanji_text LIKE %s
+                  WHERE kanji_text = %s OR kanji_text LIKE %s OR %s LIKE CONCAT(kanji_text, '%')
                 UNION
                 SELECT entry_id FROM entry_reading
-                 WHERE reading_text = %s OR reading_text LIKE %s
+                  WHERE reading_text = %s OR reading_text LIKE %s OR %s LIKE CONCAT(reading_text, '%')
                 UNION
                 SELECT entry_id FROM entry_definitions
                  WHERE gloss_text LIKE %s OR MATCH(gloss_text) AGAINST (%s IN NATURAL LANGUAGE MODE)
@@ -149,6 +158,8 @@ def search_entries(keyword: str) -> List[dict]:
             ORDER BY
                 exact_kj DESC,
                 exact_rd DESC,
+                entry_prefix_of_keyword_kj DESC,
+                entry_prefix_of_keyword_rd DESC,
                 prefix_kj DESC,
                 prefix_rd DESC,
                 is_common DESC,
@@ -173,6 +184,8 @@ def search_entries(keyword: str) -> List[dict]:
             # ranking flags
             keyword,
             keyword,
+            keyword,
+            keyword,
             prefix,
             prefix,
             regex_literal,
@@ -183,7 +196,9 @@ def search_entries(keyword: str) -> List[dict]:
             keyword,
             prefix,
             keyword,
+            keyword,
             prefix,
+            keyword,
             like,
             keyword,
         )
