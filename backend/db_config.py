@@ -90,6 +90,7 @@ def setup_database():
         CREATE TABLE IF NOT EXISTS vocab_lists (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
+            description TEXT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB
           DEFAULT CHARSET=utf8mb4
