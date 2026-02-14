@@ -32,10 +32,11 @@ def get_lists() -> List[dict]:
 			SELECT
 				l.id,
 				l.name,
+				l.description,
 				COALESCE(COUNT(f.id), 0) AS count
 			FROM vocab_lists l
 			LEFT JOIN flashcards f ON f.list_id = l.id
-			GROUP BY l.id, l.name
+			GROUP BY l.id, l.name, l.description
 			ORDER BY l.created_at DESC, l.id DESC
 			"""
 		)
@@ -44,6 +45,26 @@ def get_lists() -> List[dict]:
 			row["id"] = int(row["id"])
 			row["count"] = int(row["count"]) if row.get("count") is not None else 0
 		return rows
+	finally:
+		cursor.close()
+		conn.close()
+
+def update_list(list_id: int, name: str, description: str = None) -> Optional[dict]:
+	conn = get_connection()
+	cursor = conn.cursor(dictionary=True)
+	try:
+		cursor.execute(
+			"UPDATE vocab_lists SET name = %s, description = %s WHERE id = %s",
+			(name, description, list_id)
+		)
+		conn.commit()
+		if cursor.rowcount == 0:
+			return None
+		cursor.execute("SELECT * FROM vocab_lists WHERE id = %s", (list_id,))
+		row = cursor.fetchone()
+		if row:
+			row["id"] = int(row["id"])
+			return row
 	finally:
 		cursor.close()
 		conn.close()

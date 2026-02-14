@@ -16,6 +16,7 @@ from schemas import (
     FlashcardUpdateSchema,
     ListCreateSchema,
     ListResponseSchema,
+    ListUpdateSchema,
     WordSchema,
 )
 from services.search import search_entries
@@ -25,7 +26,7 @@ from services.flashcard_service import (
     get_flashcards_by_list,
     update_flashcard,
 )
-from services.list_service import create_list, delete_list, get_lists
+from services.list_service import create_list, delete_list, get_lists, update_list
 
 load_dotenv()
 
@@ -90,6 +91,16 @@ def api_get_lists():
 def api_create_list(payload: ListCreateSchema):
     try:
         return create_list(payload.name)
+    except mysql.connector.Error:
+        raise HTTPException(status_code=503, detail="Database connection error")
+
+@app.patch("/api/lists/{list_id}", response_model=ListResponseSchema)
+def api_update_list(list_id: int, payload: ListUpdateSchema):
+    try:
+        updated = update_list(list_id, payload.name, payload.description)
+        if updated is None:
+            raise HTTPException(status_code=404, detail="List not found")
+        return updated
     except mysql.connector.Error:
         raise HTTPException(status_code=503, detail="Database connection error")
 

@@ -38,8 +38,12 @@ class ListCreateSchema(BaseModel):
 class ListResponseSchema(BaseModel):
     id: int
     name: str
+    description: Optional[str] = None
     count: int = 0  # number of flashcards in the list
 
+class ListUpdateSchema(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=2000)
 
 class FlashcardCreateSchema(BaseModel):
     list_id: int = Field(gt=0)
