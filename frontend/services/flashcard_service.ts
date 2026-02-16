@@ -16,14 +16,14 @@ export const flashcardService = {
   },
 
   async deleteList(listId: number) {
-    await axios.delete(`${API_URL}/lists/${listId}`);
-
+    const res = await axios.delete(`${API_URL}/lists/${listId}`);
+    return res.data;
   },
 
   async updateList(listId: number, name?: string, description?: string) {
     const res = await axios.patch(`${API_URL}/lists/${listId}`, { name, description });
     return res.data;
-},
+  },
 
   // --- CARDS ---
   async addCardToList(listId: number, entryId: string, note: string = "") {

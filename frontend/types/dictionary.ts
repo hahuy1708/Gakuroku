@@ -4,6 +4,7 @@ export interface Sense{
 }
 
 export interface Word{
+    id: string;
     kanji: string | null;
     kana: string;
     is_common: boolean;
