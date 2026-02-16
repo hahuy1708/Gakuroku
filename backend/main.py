@@ -73,7 +73,8 @@ def read_root():
 def api_search(keyword: str):
     try:
         return search_entries(keyword)
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in /api/search: %s", e)
         raise HTTPException(status_code=503, detail="Database connection error")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -83,7 +84,8 @@ def api_search(keyword: str):
 def api_get_lists():
     try:
         return get_lists()
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in GET /api/lists: %s", e)
         raise HTTPException(status_code=503, detail="Database connection error")
 
 
@@ -91,7 +93,8 @@ def api_get_lists():
 def api_create_list(payload: ListCreateSchema):
     try:
         return create_list(payload.name)
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in POST /api/lists: %s", e)
         raise HTTPException(status_code=503, detail="Database connection error")
 
 @app.patch("/api/lists/{list_id}", response_model=ListResponseSchema)
@@ -101,7 +104,8 @@ def api_update_list(list_id: int, payload: ListUpdateSchema):
         if updated is None:
             raise HTTPException(status_code=404, detail="List not found")
         return updated
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in PATCH /api/lists/%s: %s", list_id, e)
         raise HTTPException(status_code=503, detail="Database connection error")
 
 
@@ -112,7 +116,8 @@ def api_delete_list(list_id: int):
         if not deleted:
             raise HTTPException(status_code=404, detail="List not found")
         return {"deleted": True}
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in DELETE /api/lists/%s: %s", list_id, e)
         raise HTTPException(status_code=503, detail="Database connection error")
 
 
@@ -120,7 +125,8 @@ def api_delete_list(list_id: int):
 def api_get_flashcards(list_id: int):
     try:
         return get_flashcards_by_list(list_id)
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in GET /api/lists/%s/flashcards: %s", list_id, e)
         raise HTTPException(status_code=503, detail="Database connection error")
 
 
@@ -134,7 +140,8 @@ def api_create_flashcard(payload: FlashcardCreateSchema):
         if "unique" in msg or "duplicate" in msg:
             raise HTTPException(status_code=409, detail="Flashcard already exists in this list")
         raise HTTPException(status_code=400, detail="Invalid list_id or entry_id")
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in POST /api/flashcards: %s", e)
         raise HTTPException(status_code=503, detail="Database connection error")
 
 
@@ -145,7 +152,8 @@ def api_update_flashcard(flashcard_id: int, payload: FlashcardUpdateSchema):
         if updated is None:
             raise HTTPException(status_code=404, detail="Flashcard not found")
         return updated
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in PATCH /api/flashcards/%s: %s", flashcard_id, e)
         raise HTTPException(status_code=503, detail="Database connection error")
 
 
@@ -156,5 +164,6 @@ def api_delete_flashcard(flashcard_id: int):
         if not deleted:
             raise HTTPException(status_code=404, detail="Flashcard not found")
         return {"deleted": True}
-    except mysql.connector.Error:
+    except mysql.connector.Error as e:
+        logger.exception("Database error in DELETE /api/flashcards/%s: %s", flashcard_id, e)
         raise HTTPException(status_code=503, detail="Database connection error")
