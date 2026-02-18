@@ -27,6 +27,7 @@ function fisherYatesShuffle<T>(arr: T[]): T[] {
 export const useStudySession = (listId: number | null) => {
   const [index, setIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
   const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
 
@@ -79,21 +80,41 @@ export const useStudySession = (listId: number | null) => {
     setIsFlipped((v) => !v);
   }, []);
 
+  const reshuffle = useCallback(() => {
+    if (!isShuffled) return;
+    const order = fisherYatesShuffle(cards.map((c) => c.id));
+    setShuffleOrder(order);
+  }, [cards, isShuffled]);
+
+  const resetSession = useCallback(() => {
+    setIndex(0);
+    setIsFlipped(false);
+    setIsFinished(false);
+    reshuffle();
+  }, [reshuffle]);
+
   const handleNext = useCallback(() => {
     setIsFlipped(false);
-    setIndex(() => {
-      if (total === 0) return 0;
-      return Math.min(safeIndex + 1, total - 1);
-    });
+    if (total === 0) return;
+
+    if (safeIndex >= total - 1) {
+      setIndex(total);
+      setIsFinished(true);
+      return;
+    }
+
+    setIndex(safeIndex + 1);
   }, [safeIndex, total]);
 
   const handlePrev = useCallback(() => {
     setIsFlipped(false);
+    setIsFinished(false);
     setIndex(() => Math.max(safeIndex - 1, 0));
   }, [safeIndex]);
 
   const toggleShuffle = useCallback(() => {
     setIsFlipped(false);
+    setIsFinished(false);
 
     setIsShuffled((prev) => {
       const next = !prev;
@@ -169,6 +190,15 @@ export const useStudySession = (listId: number | null) => {
         Boolean(target && target.isContentEditable);
 
       if (isTypingTarget) return;
+
+      if (isFinished) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          resetSession();
+        }
+        return;
+      }
+
       if (!current) return;
 
       if (e.key === "ArrowRight") {
@@ -204,7 +234,7 @@ export const useStudySession = (listId: number | null) => {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [current, enabled, handleFlip, handleNext, handlePrev, markAsMemorized]);
+  }, [current, enabled, handleFlip, handleNext, handlePrev, isFinished, markAsMemorized, resetSession]);
 
   return {
     cards: orderedCards,
@@ -212,6 +242,7 @@ export const useStudySession = (listId: number | null) => {
     index: safeIndex,
     total,
     isFlipped,
+    isFinished,
     isShuffled,
     isLoading,
     isError,
@@ -219,6 +250,7 @@ export const useStudySession = (listId: number | null) => {
     handleFlip,
     handleNext,
     handlePrev,
+    resetSession,
     toggleShuffle,
     markAsMemorized,
     setIndex,
