@@ -136,8 +136,6 @@ def update_flashcard(flashcard_id: int, is_memorized: bool, note: Optional[str])
 			(1 if is_memorized else 0, note, flashcard_id),
 		)
 		conn.commit()
-		if cursor.rowcount == 0:
-			return None
 	finally:
 		cursor.close()
 		conn.close()

@@ -26,6 +26,8 @@ from services.flashcard_service import (
     get_flashcards_by_list,
     update_flashcard,
 )
+from db_config import increment_study_log
+from datetime import date
 from services.list_service import create_list, delete_list, get_lists, update_list
 
 load_dotenv()
@@ -151,6 +153,10 @@ def api_update_flashcard(flashcard_id: int, payload: FlashcardUpdateSchema):
         updated = update_flashcard(flashcard_id, payload.is_memorized, payload.note)
         if updated is None:
             raise HTTPException(status_code=404, detail="Flashcard not found")
+        try:
+            increment_study_log(date.today())
+        except Exception as e:
+            logger.warning("Failed to increment study log: %s", e)
         return updated
     except mysql.connector.Error as e:
         logger.exception("Database error in PATCH /api/flashcards/%s: %s", flashcard_id, e)
