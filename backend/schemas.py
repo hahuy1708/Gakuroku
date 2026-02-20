@@ -63,3 +63,18 @@ class FlashcardResponseSchema(BaseModel):
     note: Optional[str] = None
     is_memorized: bool
     word_data: WordSchema
+
+
+# --- Dashboard / Stats ---
+
+
+class HeatmapDaySchema(BaseModel):
+    date: str = Field(..., description="Date in YYYY-MM-DD")
+    count: int = Field(..., ge=0)
+
+
+class OverviewStatsSchema(BaseModel):
+    total_reviews: int = Field(..., ge=0)
+    mastered_words: int = Field(..., ge=0)
+    current_streak: int = Field(..., ge=0)
+    longest_streak: int = Field(..., ge=0)

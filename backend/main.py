@@ -9,14 +9,17 @@ from dotenv import load_dotenv
 import os
 
 import mysql.connector
+from datetime import date, timedelta
 
 from schemas import (
     FlashcardCreateSchema,
     FlashcardResponseSchema,
     FlashcardUpdateSchema,
+    HeatmapDaySchema,
     ListCreateSchema,
     ListResponseSchema,
     ListUpdateSchema,
+    OverviewStatsSchema,
     WordSchema,
 )
 from services.search import search_entries
@@ -26,8 +29,7 @@ from services.flashcard_service import (
     get_flashcards_by_list,
     update_flashcard,
 )
-from db_config import increment_study_log
-from datetime import date
+from db_config import get_connection, increment_study_log
 from services.list_service import create_list, delete_list, get_lists, update_list
 
 load_dotenv()
@@ -173,3 +175,94 @@ def api_delete_flashcard(flashcard_id: int):
     except mysql.connector.Error as e:
         logger.exception("Database error in DELETE /api/flashcards/%s: %s", flashcard_id, e)
         raise HTTPException(status_code=503, detail="Database connection error")
+
+
+@app.get("/api/stats/heatmap", response_model=list[HeatmapDaySchema])
+def api_get_heatmap_stats():
+    """Return study activity for last 365 days (including today)."""
+    start_date = date.today() - timedelta(days=364)
+    end_date = date.today()
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT `date`, `count`
+            FROM study_logs
+            WHERE `date` >= %s AND `date` <= %s
+            ORDER BY `date` ASC
+            """,
+            (start_date, end_date),
+        )
+
+        out: list[dict] = []
+        for row in cursor.fetchall() or []:
+            d = row[0]
+            c = row[1]
+            out.append({"date": d.isoformat() if hasattr(d, "isoformat") else str(d), "count": int(c)})
+        return out
+    except mysql.connector.Error as e:
+        logger.exception("Database error in GET /api/stats/heatmap: %s", e)
+        raise HTTPException(status_code=503, detail="Database connection error")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def _compute_streaks(study_dates: list[date]) -> tuple[int, int]:
+    """Compute (current_streak, longest_streak) from sorted unique dates."""
+    if not study_dates:
+        return 0, 0
+
+    unique_sorted = sorted(set(study_dates))
+    date_set = set(unique_sorted)
+
+    today = date.today()
+    start = today if today in date_set else (today - timedelta(days=1) if (today - timedelta(days=1)) in date_set else None)
+    current_streak = 0
+    if start is not None:
+        d = start
+        while d in date_set:
+            current_streak += 1
+            d = d - timedelta(days=1)
+
+    longest_streak = 1
+    run = 1
+    for i in range(1, len(unique_sorted)):
+        if (unique_sorted[i] - unique_sorted[i - 1]).days == 1:
+            run += 1
+        else:
+            longest_streak = max(longest_streak, run)
+            run = 1
+    longest_streak = max(longest_streak, run)
+
+    return current_streak, longest_streak
+
+
+@app.get("/api/stats/overview", response_model=OverviewStatsSchema)
+def api_get_overview_stats():
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COALESCE(SUM(`count`), 0) FROM study_logs")
+        total_reviews = int((cursor.fetchone() or [0])[0] or 0)
+
+        cursor.execute("SELECT COUNT(*) FROM flashcards WHERE is_memorized = 1")
+        mastered_words = int((cursor.fetchone() or [0])[0] or 0)
+
+        cursor.execute("SELECT `date` FROM study_logs WHERE `count` > 0 ORDER BY `date` ASC")
+        study_dates = [row[0] for row in (cursor.fetchall() or [])]
+        current_streak, longest_streak = _compute_streaks(study_dates)
+
+        return {
+            "total_reviews": total_reviews,
+            "mastered_words": mastered_words,
+            "current_streak": current_streak,
+            "longest_streak": longest_streak,
+        }
+    except mysql.connector.Error as e:
+        logger.exception("Database error in GET /api/stats/overview: %s", e)
+        raise HTTPException(status_code=503, detail="Database connection error")
+    finally:
+        cursor.close()
+        conn.close()
