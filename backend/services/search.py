@@ -1,4 +1,4 @@
-# backend/search.py
+# backend/services/search.py
 from __future__ import annotations
 
 import json

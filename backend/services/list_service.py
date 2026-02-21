@@ -1,8 +1,7 @@
+# backend/services/list_service.py
 from __future__ import annotations
 
 from typing import List, Optional
-
-import mysql.connector
 
 from db_config import get_connection
 

@@ -1,9 +1,8 @@
+# backend/services/flashcard_service.py
 from __future__ import annotations
 
 import json
 from typing import List, Optional
-
-import mysql.connector
 
 from db_config import get_connection
 from services.search import _extract_word_schema_dict, _parse_word_json
